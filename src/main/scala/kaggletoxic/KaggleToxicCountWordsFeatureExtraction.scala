@@ -5,6 +5,10 @@ import org.apache.spark.sql.SparkSession
 
 /**
   * Created by DT2(M.Kumar) on 1/29/2018.
+  *
+  * Further Improvement:
+  * 1. Treat Singular and Plural words as same
+  * 2. Words in URL can be truncated.
   */
 object KaggleToxicCountWordsFeatureExtraction {
 
@@ -15,6 +19,8 @@ object KaggleToxicCountWordsFeatureExtraction {
       .appName("KaggleToxic")
       .config("spark.master", "local")
       .getOrCreate()
+
+    spark.sparkContext.setLogLevel("ERROR")
 
     import spark.implicits._
     import org.apache.spark.sql.functions._
@@ -35,9 +41,16 @@ object KaggleToxicCountWordsFeatureExtraction {
       .select("words")
       .as[String]
 
-    val wordsIntoColumn = usefulWords.flatMap(_.split(" ")).map(_.toLowerCase.trim)
+    //Adding replaceAll statement to remove all non-alphanumeric characters like (, ! : etc)
+    val wordsIntoColumn = usefulWords.flatMap(_.split(" ")).map(_.toLowerCase.replaceAll("[^A-Za-z0-9]",""))
 
     val wordCount = wordsIntoColumn.groupBy("value").count().sort($"count".desc)
+
+    wordCount.cache()
+
+    val articleWordCountDf = wordCount.where("value like '%article%'")
+
+    print(articleWordCountDf.count + "\n")
 
     print(wordCount.count)
 
